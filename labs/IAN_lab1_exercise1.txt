@@ -1,4 +1,4 @@
-#OBJDUMP
+#1) OBJDUMP -d
 [xpazurm00@localhost elf-analysis-excercises_2023]$ objdump -d exercise-1
 
 exercise-1:     file format elf64-x86-64
@@ -164,7 +164,7 @@ Disassembly of section .fini:
   4011c8:       48 83 c4 08             add    $0x8,%rsp
   4011cc:       c3                      retq
 
-#STRINGS
+#2) STRINGS
 xpazurm00@localhost elf-analysis-excercises_2023]$ strings exercise-1
 /lib64/ld-linux-x86-64.so.2
 puts
@@ -447,71 +447,7 @@ _init
 .comment
 .gnu.build.attributes
 
-[xpazurm00@localhost elf-analysis-excercises_2023]$ readelf -s
-readelf: Warning: Nothing to do.
-Usage: readelf <option(s)> elf-file(s)
- Display information about the contents of ELF format files
- Options are:
-  -a --all               Equivalent to: -h -l -S -s -r -d -V -A -I
-  -h --file-header       Display the ELF file header
-  -l --program-headers   Display the program headers
-     --segments          An alias for --program-headers
-  -S --section-headers   Display the sections' header
-     --sections          An alias for --section-headers
-  -g --section-groups    Display the section groups
-  -t --section-details   Display the section details
-  -e --headers           Equivalent to: -h -l -S
-  -s --syms              Display the symbol table
-     --symbols           An alias for --syms
-     --dyn-syms          Display the dynamic symbol table
-  -n --notes             Display the core notes (if present)
-  -r --relocs            Display the relocations (if present)
-  -u --unwind            Display the unwind info (if present)
-  -d --dynamic           Display the dynamic section (if present)
-  -V --version-info      Display the version sections (if present)
-  -A --arch-specific     Display architecture specific information (if any)
-  -c --archive-index     Display the symbol/file index in an archive
-  -D --use-dynamic       Use the dynamic section info when displaying symbols
-  -L --lint|--enable-checks  Display warning messages for possible problems
-  -x --hex-dump=<number|name>
-                         Dump the contents of section <number|name> as bytes
-  -p --string-dump=<number|name>
-                         Dump the contents of section <number|name> as strings
-  -R --relocated-dump=<number|name>
-                         Dump the contents of section <number|name> as relocated bytes
-  -z --decompress        Decompress section before dumping it
-  -w[lLiaprmfFsoORtUuTgAckK] or
-  --debug-dump[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,
-               =frames-interp,=str,=str-offsets,=loc,=Ranges,=pubtypes,
-               =gdb_index,=trace_info,=trace_abbrev,=trace_aranges,
-               =addr,=cu_index,=links,=follow-links]
-                         Display the contents of DWARF debug sections
-  --dwarf-depth=N        Do not display DIEs at depth N or greater
-  --dwarf-start=N        Display DIEs starting with N, at the same depth
-                         or deeper
-  --ctf=<number|name>    Display CTF info from section <number|name>
-  --ctf-parent=<number|name>
-                         Use section <number|name> as the CTF parent
-
-  --ctf-symbols=<number|name>
-                         Use section <number|name> as the CTF external symtab
-
-  --ctf-strings=<number|name>
-                         Use section <number|name> as the CTF external strtab
-
-  -I --histogram         Display histogram of bucket list lengths
-  -W --wide              Allow output width to exceed 80 characters
-  -T --silent-truncation If a symbol name is truncated, do not add a suffix [...]
-  -U --unicode=[locale|escape|hex|highlight|invalid]
-                         Display unicode characters as determined by the current locale
-                          (default), escape sequences, "<hex sequences>", highlighted
-                          escape sequences, or treat them as invalid and display as
-                          "{hex sequences}"
-  @<file>                Read options from <file>
-  -H --help              Display this information
-  -v --version           Display the version number of readelf
-
-#READELF SYMTAB
+#3) READELF SYMTAB
 [xpazurm00@localhost elf-analysis-excercises_2023]$ readelf -s exercise-1
 
 Symbol table '.dynsym' contains 7 entries:
@@ -597,7 +533,7 @@ Symbol table '.symtab' contains 70 entries:
     68: 0000000000404050     0 OBJECT  GLOBAL HIDDEN    24 __TMC_END__
     69: 0000000000401000     0 FUNC    GLOBAL HIDDEN    12 _init
 
-#READELF SECTIONS
+#4) READELF SECTIONS
 pazurm00@localhost elf-analysis-excercises_2023]$ readelf -S exercise-1
 There are 31 section headers, starting at offset 0x5a88:
 
@@ -672,19 +608,20 @@ Key to Flags:
   C (compressed), x (unknown), o (OS specific), E (exclude),
   l (large), p (processor specific)
 
-#READELF HEX DUMP
+#5) READELF HEX DUMP
 [xpazurm00@localhost elf-analysis-excercises_2023]$ readelf -x .data exercise-1
 
 Hex dump of section '.data':
   0x00404038 00000000 00000000 43383040 36714956 ........C80@6qIV
   0x00404048 75666823 00                         ufh#.
 
-#READELF STRING DUMP
+#6) READELF STRING DUMP
 [xpazurm00@localhost elf-analysis-excercises_2023]$ readelf -p .data exercise-1
 
 String dump of section '.data':
   [     8]  C80@6qIVufh#
 
+#7) CORRECT PASSWORD
 [xpazurm00@localhost elf-analysis-excercises_2023]$ ./exercise-1
 Enter password: C80@6qIVufh#
 Password is correct
