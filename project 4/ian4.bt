@@ -1,0 +1,158 @@
+#! /bin/env bpftrace
+
+/* Scrip intro, help message */
+BEGIN
+{
+	if ($# < 1) {
+		printf("\neBPF process monitoring tool\n\n");
+		printf("Usage: sudo bpftrace ian4.bt [@target_process]\n");
+		printf("@target_process = process to be monitored\n\n");
+		printf("If the script has 0 arguments, it prints this help message.\n");
+		exit(); 
+	}
+
+	@target_process = str($1);
+
+	// PID map to track children process PIDs
+	@pmap[-1] = 1;
+
+	printf("[%s] Targeting process '%s'\n\n", strftime("%H:%M:%S", nsecs), @target_process);
+}
+
+/* fork, vfork, clone */
+tracepoint:syscalls:sys_enter_fork,
+tracepoint:syscalls:sys_enter_vfork,
+tracepoint:syscalls:sys_enter_clone
+/ comm == @target_process || @pmap[pid] /
+{
+	printf("[%s] %s PID %d called %s\n", strftime("%H:%M:%S", nsecs), comm, pid, probe);
+}
+
+tracepoint:syscalls:sys_exit_fork,
+tracepoint:syscalls:sys_exit_vfork,
+tracepoint:syscalls:sys_exit_clone
+/ comm == @target_process || @pmap[pid] /
+{
+	// Add child process pid to @pmap
+	if (args.ret > 0) {
+		@pmap[args.ret] = 1;
+	}
+}
+
+
+/* exec */
+tracepoint:syscalls:sys_enter_execve,
+tracepoint:syscalls:sys_enter_execveat
+{	
+	// exec file path
+	$path = args.filename;
+	
+	// exec with the @target_process name in file name
+	if (strcontains(str($path), str($1))) {
+		printf("[%s] %s PID %d executed exec for pathname \"%s\"\n", strftime("%H:%M:%S", nsecs), comm, pid, str($path));
+	}
+}
+
+/* CPU run-time of targeted process(es) */
+tracepoint:sched:sched_switch
+{	
+	// Process names
+	$prev_comm = args.prev_comm;
+	$next_comm = args.next_comm; 
+
+	// Process pids
+	$ppid = args.prev_pid;
+	$npid = args.next_pid;
+	
+	// Debug print process transition
+	//printf("%s ---> %s", $prev_comm, $next_comm);
+
+	// Target process active cpu runtime starting point
+	if (@target_process == $next_comm || @pmap[$npid]) {		
+		$pid = $npid;
+
+		// Rescheduling time for the targeted process
+		@sched_start[$pid, cpu] = nsecs;
+	}
+
+	// Target process active cpu runtime end point
+	if (@target_process == $prev_comm || @pmap[$ppid]) {
+		$pid = $ppid;	
+	
+		if (@sched_start[$pid, cpu]) {	
+			// End of process CPU runtime at this moment
+			// run = current time - reschedule start
+			$active_run = nsecs - @sched_start[$pid, cpu];
+		
+			delete(@sched_start[$pid, cpu]);
+		
+			@total_cpu_runtime[$pid, cpu] += $active_run;
+		}
+	}
+}
+
+/* high resoltion timers */
+kprobe:hrtimer_interrupt
+/ comm == @target_process || @pmap[pid] /
+{	
+	// Time of interrrupt
+	@hrtimer_int_t[pid, cpu] = nsecs;
+}
+
+kretprobe:hrtimer_interrupt
+/ comm == @target_process || @pmap[pid] /
+{
+	if (@hrtimer_int_t[pid, cpu]) {
+		@int_total[pid, cpu] += nsecs - @hrtimer_int_t[pid, cpu]; 
+		
+		delete(@hrtimer_int_t[pid, cpu]);
+	}
+}
+
+/* Statistics output every 5 seconds */
+interval:s:5
+{
+
+	printf("\n\n+-------------------------------------+\n");
+	printf("           Scheduling stats:\n");
+	printf("  CPU    PID  run  runtime    hrtimer\n");
+
+	// to do here
+	
+	for ($kv : @total_cpu_runtime) {
+		// cpu & pid
+		$pid = $kv.0.0;
+		$cpu = $kv.0.1;
+		
+		// runtime
+		$runtime = (uint64) $kv.1;		
+		$relative_runtime = ($runtime * 100) / 5000000000;
+
+		// hrtimer interrupt 
+		$hrtimer = (uint64) 0;
+
+		if (@int_total[$pid, $cpu]) {
+			$hrtimer = (uint64) @int_total[$pid, $cpu] / 1000;	
+		}
+
+		printf("  %3d %6d %3d%%  %4llu ms %7llu µs\n", $cpu, $pid, $relative_runtime, $runtime/1000000, $hrtimer);
+	}	
+
+	printf("+-------------------------------------+\n\n");
+	
+	clear(@int_total);
+	clear(@total_cpu_runtime);
+}
+
+/* Script exit */
+END
+{
+	clear(@target_process);
+	clear(@pmap);
+
+	clear(@hrtimer_int_t);
+	clear(@sched_start);
+
+	clear(@int_total);
+	clear(@total_cpu_runtime);
+}
